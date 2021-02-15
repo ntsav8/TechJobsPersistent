@@ -16,6 +16,7 @@ namespace TechJobsPersistent.Controllers
     public class HomeController : Controller
     {
         private JobDbContext context;
+        private List<Employer> employers;
 
         public HomeController(JobDbContext dbContext)
         {
@@ -30,14 +31,58 @@ namespace TechJobsPersistent.Controllers
         }
 
         [HttpGet("/Add")]
+
         public IActionResult AddJob()
         {
-            return View();
+            List<Employer> employers = context.Employers.ToList();
+            List<Skill> skills = context.Skills.ToList();
+
+            AddJobViewModel viewModel = new AddJobViewModel(employers, skills);
+
+            return View(viewModel);
         }
 
-        public IActionResult ProcessAddJobForm()
+        public IActionResult ProcessAddJobForm(AddJobViewModel viewModel, string[] selectedSkills)
         {
-            return View();
+            if (ModelState.IsValid)
+            {
+                Job newJob = new Job
+                {
+                    Name = viewModel.Name,
+                    Employer = context.Employers.Find(viewModel.EmployerId)
+                };
+
+                foreach (var selectedskill in selectedSkills)
+                {
+                    JobSkill newJobSkill = new JobSkill
+                    {
+                        Job = newJob,
+                        Skill = context.Skills.Find(int.Parse(selectedskill))
+                    };
+
+                    context.JobSkills.Add(newJobSkill);
+                }
+
+                context.Jobs.Add(newJob);
+                context.SaveChanges();
+
+                return Redirect("/Home");
+            }
+            viewModel.AllSkills = context.Skills.ToList();
+
+            List<Employer> employers = context.Employers.ToList();
+
+            viewModel.AllEmployers = new List<SelectListItem>();
+
+            foreach (Employer employer in employers)
+            {
+                viewModel.AllEmployers.Add(new SelectListItem 
+                {
+                    Text = employer.Name,
+                    Value = employer.Id.ToString()
+                });
+            }
+            return View("AddJob", viewModel);
         }
 
         public IActionResult Detail(int id)
